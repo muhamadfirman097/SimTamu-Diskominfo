@@ -1,61 +1,93 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+## e-Tamu — Panduan Singkat Menjalankan Proyek Ini
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Panduan ini menjelaskan langkah-langkah untuk menyiapkan, menjalankan, dan mengembangkan proyek Laravel yang ada di repositori ini.
 
-## About Laravel
+**Prasyarat**
+- PHP 8.1+ (atau versi yang sesuai dengan `composer.json`)
+- Composer
+- Node.js + npm / pnpm / yarn
+- MySQL / MariaDB atau database lain yang terkonfigurasi di `config/database.php`
+- Git
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+**1. Salin repositori (jika belum)**
+Jika Anda belum mengkloning, jalankan:
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+```bash
+git clone https://github.com/Aeriz14/e-tamuProjectV.1.git
+cd e-tamuProjectV.1
+```
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+**2. Pasang dependensi PHP**
 
-## Learning Laravel
+```bash
+composer install --no-interaction --prefer-dist
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+**3. Pasang dependensi JavaScript & bangun aset**
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+```bash
+npm install
+npm run build    # atau `npm run dev` untuk mode development
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+**4. Konfigurasi environment**
+ - Salin file contoh environment:
 
-## Laravel Sponsors
+```bash
+cp .env.example .env
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+ - Buka `.env` dan atur nilai `DB_*` untuk koneksi database Anda (DB_DATABASE, DB_USERNAME, DB_PASSWORD).
 
-### Premium Partners
+**5. Buat application key**
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```bash
+php artisan key:generate
+```
 
-## Contributing
+**6. Migrasi database & seeding**
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+php artisan migrate
+php artisan db:seed    # jika seeder tersedia dan Anda ingin memasukkan data contoh
+```
 
-## Code of Conduct
+Catatan: Jika Anda menggunakan Windows dan encountering permission errors, jalankan command prompt/PowerShell sebagai Administrator atau sesuaikan permission folder `storage` dan `bootstrap/cache`.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+**7. Buat symbolic link untuk penyimpanan (opsional untuk file yang dapat diakses publik)**
 
-## Security Vulnerabilities
+```bash
+php artisan storage:link
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+**8. Menjalankan server lokal**
 
-## License
+```bash
+php artisan serve
+# Akses di http://127.0.0.1:8000
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+**9. Menjalankan test**
+
+Jika proyek menggunakan Pest atau PHPUnit:
+
+```bash
+./vendor/bin/pest
+# atau
+php artisan test
+```
+
+**10. Tips deployment singkat**
+- Pastikan environment production (`.env`) berisi konfigurasi yang aman (APP_ENV=production, APP_DEBUG=false).
+- Jalankan `composer install --no-dev --optimize-autoloader` di server produksi.
+- Jalankan `php artisan config:cache`, `php artisan route:cache`, dan `php artisan view:cache` untuk performa.
+- Set permission folder `storage` dan `bootstrap/cache` agar webserver dapat menulis.
+
+**11. Integrasi GitHub / CI (opsional)**
+- Anda dapat menambahkan workflow GitHub Actions untuk menjalankan test dan build otomatis. Contoh singkat (satu file `.github/workflows/ci.yml`) akan menjalankan `composer install` dan `npm ci` lalu `php artisan test`.
+
+**Troubleshooting umum**
+- Error koneksi DB: periksa nilai `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` di `.env`.
+- Kunci aplikasi tidak ada: jalankan `php artisan key:generate`.
+- Aset tidak muncul: pastikan `npm run build` selesai dan file di `public/build` tersedia.
+
