@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use App\Events\AppointmentSubmitted;
 use App\Models\Division;
-use App\Jobs\SendAppointmentNotification; // <-- 1. TAMBAHKAN IMPORT JOB INI
+use App\Jobs\SendAppointmentNotification; // Import Job Notifikasi
 
 class GuestController extends Controller
 {
@@ -18,56 +18,67 @@ class GuestController extends Controller
      */
     public function createAppointmentForm()
     {
-        // 2. Ambil semua data divisi dari database
+        // Ambil semua data divisi dari database
         $divisions = Division::orderBy('name')->get();
 
-        // 3. Kirim data tersebut ke view
+        // Kirim data tersebut ke view
         return view('appointment_form', compact('divisions'));
     }
 
     /**
      * Menyimpan data janji temu yang baru diajukan.
+     * * PENTING: Nama fungsi ini harus 'store' karena di routes/web.php 
+     * tertulis [GuestController::class, 'store']
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\RedirectResponse
      */
-   public function storeAppointment(Request $request)
-{
-    // ... (kode validasi Anda) ...
-    $request->validate([
-        'nama_tamu'     => 'required|string|max:255',
-        'instansi_asal' => 'required|string|max:255',
-        'kontak'        => 'required|string|max:100',
-        'divisi_tujuan' => 'required|string',
-        'new_division_name' => 'required_if:divisi_tujuan,other|nullable|string|max:255|unique:divisions,name',
-        'keperluan'     => 'required|string',
-        'tanggal_temu'  => 'required|date',
-        'waktu_temu'    => 'required',
-    ]);
+    public function store(Request $request) 
+    {
+        // Validasi input
+        $request->validate([
+            'nama_tamu'     => 'required|string|max:255',
+            'instansi_asal' => 'required|string|max:255',
+            'kontak'        => 'required|string|max:100',
+            'divisi_tujuan' => 'required|string',
+            'new_division_name' => 'required_if:divisi_tujuan,other|nullable|string|max:255|unique:divisions,name',
+            'keperluan'     => 'required|string',
+            'tanggal_temu'  => 'required|date',
+            'waktu_temu'    => 'required',
+        ]);
 
-    if ($request->divisi_tujuan === 'other') {
-        $newDivision = Division::create(['name' => $request->new_division_name]);
-        $request->merge(['divisi_tujuan' => $newDivision->name]);
+        // Handle opsi divisi "Lainnya"
+        if ($request->divisi_tujuan === 'other') {
+            $newDivision = Division::create(['name' => $request->new_division_name]);
+            $request->merge(['divisi_tujuan' => $newDivision->name]);
+        }
+
+        // Simpan ke database
+        $appointment = Appointment::create($request->all());
+
+        // Generate ID Unik (Contoh: JT05-BU) untuk keperluan tampilan & notifikasi
+        $namaInisial = strtoupper(substr($appointment->nama_tamu, 0, 2));
+        $janjiTemuId = 'JT' . str_pad($appointment->id, 2, '0', STR_PAD_LEFT) . '-' . $namaInisial;
+
+        // Kirim Notifikasi WA (Background Job)
+        // Pastikan Worker jalan atau di Vercel pakai cron/langsung
+        try {
+            SendAppointmentNotification::dispatch($appointment, $janjiTemuId);
+        } catch (\Exception $e) {
+            // Abaikan error notifikasi agar user tetap bisa submit
+            // Log error jika perlu: \Log::error($e->getMessage());
+        }
+
+        // Trigger Event Realtime (Pusher)
+        try {
+            broadcast(new AppointmentSubmitted());
+        } catch (\Exception $e) {
+            // Abaikan error broadcast
+        }
+
+        // Redirect ke halaman sukses dengan membawa ID Tiket
+        return redirect()->route('appointment.success')->with('janjiTemuId', $janjiTemuId);
     }
-
-    $appointment = Appointment::create($request->all());
-
-    // =======================================================
-    // ==== ❗ KODE YANG HILANG ADA DI SINI, TAMBAHKAN KEMBALI ====
-    // =======================================================
-    $namaInisial = strtoupper(substr($appointment->nama_tamu, 0, 2));
-    $janjiTemuId = 'JT' . str_pad($appointment->id, 2, '0', STR_PAD_LEFT) . '-' . $namaInisial;
-
-    // <-- 2. TAMBAHKAN BARIS INI
-    // Mengirim tugas pengiriman WA ke antrian (queue)
-    // Job ini akan berjalan di latar belakang
-    SendAppointmentNotification::dispatch($appointment, $janjiTemuId);
-
-    broadcast(new AppointmentSubmitted());
-
-    // Sekarang, variabel $janjiTemuId sudah ada dan bisa digunakan
-    return redirect()->route('appointment.success')->with('janjiTemuId', $janjiTemuId);
-}
 
     public function showStatusCheckForm()
     {
