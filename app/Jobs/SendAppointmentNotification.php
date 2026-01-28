@@ -9,7 +9,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log; // Untuk error logging
+use Illuminate\Support\Facades\Log;
 
 class SendAppointmentNotification implements ShouldQueue
 {
@@ -32,89 +32,74 @@ class SendAppointmentNotification implements ShouldQueue
      */
     public function handle(): void
     {
-        $token = config('services.fonnte.token');
-        if (!$token) {
-            Log::error('Fonnte token not set. Skipping WA notification.');
+        // 1. Ambil Token: Cek config dulu, kalau kosong ambil langsung dari ENV
+        // Ini memastikan token 'w8AmWYeCe8W5UcXqiCLY' yang Anda set di Vercel terbaca
+        $token = config('services.fonnte.token') ?? env('FONNTE_TOKEN');
+
+        if (empty($token)) {
+            Log::error('[WA Job] GAGAL: Fonnte Token belum di-set di Vercel (FONNTE_TOKEN).');
             return;
         }
 
-        // 1. Ambil nomor dari field 'kontak'
+        // 2. Format Nomor HP
         $targetNumber = $this->formatPhoneNumber($this->appointment->kontak);
-
-        // 2. Jika setelah diformat nomornya tidak valid, jangan kirim.
         if (empty($targetNumber)) {
-             Log::warning('Could not send WA. Invalid or empty phone number after formatting.', ['kontak' => $this->appointment->kontak]);
+             Log::warning('[WA Job] GAGAL: Nomor HP tidak valid.', ['kontak' => $this->appointment->kontak]);
              return;
         }
 
-        // 3. Siapkan pesan
+        // 3. Siapkan Pesan
+        $appName = config('app.name', 'SimTamu Diskominfo');
         $message = sprintf(
-            "Pengajuan Janji Temu Berhasil!\n\n" .
-            "Terima kasih, *%s*.\n\n" .
-            "Pengajuan janji temu Anda telah kami terima dengan detail:\n" .
-            "- *ID Janji*: %s\n" .
-            "- *Divisi Tujuan*: %s\n" .
-            "- *Keperluan*: %s\n\n" .
-            "Mohon simpan ID Janji Temu untuk melakukan pengecekan status.\n\n" .
-            "Terima kasih,\n*%s*",
+            "Halo, *%s* 👋\n\n" .
+            "Pengajuan Janji Temu Anda *BERHASIL* diterima sistem.\n\n" .
+            "📋 *Detail Tiket:*\n" .
+            "🆔 ID Tiket: *%s* (Simpan ini!)\n" .
+            "🏢 Tujuan: %s\n" .
+            "📝 Keperluan: %s\n\n" .
+            "Silakan gunakan ID Tiket untuk cek status persetujuan di website kami.\n\n" .
+            "Salam,\n*%s*",
             $this->appointment->nama_tamu,
             $this->janjiTemuId,
             $this->appointment->divisi_tujuan,
             $this->appointment->keperluan,
-            config('app.name', 'SimTamu Diskominfo') //
+            $appName
         );
 
         // 4. Kirim ke API Fonnte
         try {
-            $response = Http::withHeaders([
+            Log::info('[WA Job] Mengirim ke Fonnte...', ['target' => $targetNumber]);
+
+            $response = Http::timeout(10)->withHeaders([
                 'Authorization' => $token
-            ])->post('https://api.fonnte.com/send', [ // Ganti URL jika Fonnte Anda beda
+            ])->post('https://api.fonnte.com/send', [
                 'target' => $targetNumber,
-                'message' => $message
+                'message' => $message,
+                'countryCode' => '62', 
             ]);
 
-            if ($response->failed()) {
-                Log::error('Fonnte API request failed.', $response->json());
+            if ($response->successful()) {
+                Log::info('[WA Job] SUKSES: Notifikasi terkirim.', ['response' => $response->json()]);
             } else {
-                Log::info('Fonnte WA sent successfully.', ['target' => $targetNumber]);
+                Log::error('[WA Job] GAGAL: Fonnte menolak.', ['status' => $response->status(), 'body' => $response->body()]);
             }
+
         } catch (\Exception $e) {
-            Log::critical('Exception when sending WA via Fonnte.', ['message' => $e->getMessage()]);
+            Log::critical('[WA Job] ERROR SYSTEM: Gagal menghubungi Fonnte.', ['error' => $e->getMessage()]);
         }
     }
 
     /**
-     * Membersihkan dan memformat nomor telepon ke standar 62.
-     * Contoh: "0812-345-678" menjadi "62812345678"
-     * Contoh: "+62 812 345 678" menjadi "62812345678"
-     * Contoh: "nama@gmail.com" menjadi "" (string kosong)
+     * Format nomor ke 62
      */
     private function formatPhoneNumber($number)
     {
-        // 1. Hapus semua karakter kecuali angka
         $cleaned = preg_replace('/[^\d]/', '', $number);
-
-        // 2. Jika berisi email, preg_replace akan menghapus semuanya
-        if (empty($cleaned)) {
-            return ''; // Bukan nomor telepon
-        }
-
-        // 3. Cek apakah nomor valid (minimal 9 digit)
-        if (strlen($cleaned) < 9) {
-             return ''; // Nomor tidak valid
-        }
-
-        // 4. Ganti '0' di depan dengan '62'
-        if (substr($cleaned, 0, 1) === '0') {
-            return '62' . substr($cleaned, 1);
-        }
-
-        // 5. Jika sudah '62', biarkan
-        if (substr($cleaned, 0, 2) === '62') {
-            return $cleaned;
-        }
-
-        // 6. Jika kasus lain (misal: 812...), tambahkan 62
+        if (empty($cleaned) || strlen($cleaned) < 9) return '';
+        
+        if (substr($cleaned, 0, 1) === '0') return '62' . substr($cleaned, 1);
+        if (substr($cleaned, 0, 2) === '62') return $cleaned;
+        
         return '62' . $cleaned;
     }
 }
