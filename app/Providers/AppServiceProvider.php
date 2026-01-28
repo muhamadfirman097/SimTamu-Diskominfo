@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\URL; // Import URL
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\View; // Import View Facade
+use App\Models\Appointment;          // Import Model Appointment
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -20,9 +22,29 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Paksa HTTPS saat di production/Vercel agar CSS termuat
+        // 1. Paksa HTTPS saat di production/Vercel agar CSS termuat aman
         if($this->app->environment('production')) {
             URL::forceScheme('https');
         }
+
+        // 2. PERBAIKAN: Kirim data notifikasi ke Menu Navigasi (Side Bar)
+        // Ini mencegah error "Undefined variable $pendingAppointmentsCount"
+        View::composer('layouts.navigation', function ($view) {
+            $count = 0;
+            
+            try {
+                // Cek database untuk menghitung janji temu status 'pending'
+                // Menggunakan try-catch agar aman jika tabel belum dimigrasi
+                if (class_exists(Appointment::class)) {
+                    $count = Appointment::where('status', 'pending')->count();
+                }
+            } catch (\Exception $e) {
+                // Jika terjadi error database (misal saat proses deploy awal), anggap 0
+                $count = 0;
+            }
+            
+            // Kirim variabel ke view
+            $view->with('pendingAppointmentsCount', $count);
+        });
     }
 }
