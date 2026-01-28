@@ -1,3 +1,8 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Tambahkan ini untuk mencegah elemen berkedip (flicker) saat loading */
+[x-cloak] {
+    display: none !important;
+}
