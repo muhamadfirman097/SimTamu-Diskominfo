@@ -42,8 +42,6 @@ Route::post('/cek-status', [GuestController::class, 'checkStatus']);
 
 Route::middleware(['auth', 'verified'])->group(function () {
     // Dashboard Admin
-    // PERBAIKAN PENTING: Gunakan [AdminController::class, 'dashboard']
-    // Jangan gunakan function() { return view... } karena data tidak akan terkirim.
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
 
     // Profile Routes
@@ -58,16 +56,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/admin/divisions/{division}', [SettingsController::class, 'destroyDivision'])->name('admin.divisions.destroy');
 
     // Kelola Janji Temu (Appointments)
-    Route::get('/admin/appointments', [AdminController::class, 'appointments'])->name('admin.appointments');
+    // PERBAIKAN: Menggunakan 'listAppointments' (sesuai controller), bukan 'appointments'
+    Route::get('/admin/appointments', [AdminController::class, 'listAppointments'])->name('admin.appointments');
     Route::post('/admin/appointments/{id}/approve', [AdminController::class, 'approveAppointment'])->name('admin.appointments.approve');
     Route::post('/admin/appointments/{id}/reject', [AdminController::class, 'rejectAppointment'])->name('admin.appointments.reject');
 
     // Kelola Buku Tamu (Guest Book)
-    Route::get('/admin/guest-book', [AdminController::class, 'index'])->name('admin.guestbook'); // Pastikan method index ada di AdminController, atau ganti ke listGuestBook
-    // Jika di AdminController namanya 'listGuestBook', ubah baris di atas jadi:
-    // Route::get('/admin/guest-book', [AdminController::class, 'listGuestBook'])->name('admin.guestbook');
+    // PERBAIKAN: Menggunakan 'listGuestBook', bukan 'index'
+    Route::get('/admin/guest-book', [AdminController::class, 'listGuestBook'])->name('admin.guestbook');
     
+    // PERBAIKAN: Menggunakan 'createGuestForm', bukan 'create'
     Route::get('/admin/guest-book/create', [AdminController::class, 'createGuestForm'])->name('admin.guestbook.create');
+    
+    // PERBAIKAN: Menggunakan 'storeGuest', bukan 'store'
     Route::post('/admin/guest-book', [AdminController::class, 'storeGuest'])->name('admin.guestbook.store');
     
     // Rute Delete Guestbook
