@@ -3,8 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\View; // <-- 1. Tambahkan ini
-use App\Models\Appointment;            // <-- 2. Tambahkan ini
+use Illuminate\Support\Facades\URL; // Import URL
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -21,10 +20,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // 3. Tambahkan logika ini
-        View::composer('layouts.navigation', function ($view) {
-            $pendingAppointmentsCount = Appointment::where('status', 'pending')->count();
-            $view->with('pendingAppointmentsCount', $pendingAppointmentsCount);
-        });
+        // Paksa HTTPS saat di production/Vercel agar CSS termuat
+        if($this->app->environment('production')) {
+            URL::forceScheme('https');
+        }
     }
 }
