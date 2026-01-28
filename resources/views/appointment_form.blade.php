@@ -1,6 +1,6 @@
 <x-guest-layout>
     {{-- Inisialisasi Alpine.js untuk state management dropdown "Lainnya" --}}
-    <div x-data="{ selectedDivision: '{{ old('divisi_tujuan') }}' }">
+    <div x-data="{ selectedDivision: @json(old('divisi_tujuan') ?? '') }">
         <div class="text-center mb-8">
             <h2 class="text-2xl font-bold text-gray-800">Formulir Janji Temu</h2>
             <p class="text-sm text-gray-500 mt-1">Silakan isi detail di bawah untuk menjadwalkan pertemuan Anda.</p>
@@ -61,7 +61,7 @@
             </div>
 
             {{-- Input Divisi Baru (kondisional) --}}
-            <div x-show="selectedDivision === 'other'" x-transition class="!mt-4">
+            <div x-show="selectedDivision === 'other'" x-transition x-cloak class="!mt-4">
                 <x-input-label for="new_division_name" value="Nama Divisi Baru" />
                 <x-text-input id="new_division_name" name="new_division_name" type="text" class="mt-1 block w-full" :value="old('new_division_name')"
                        placeholder="Ketik nama divisi di sini"
