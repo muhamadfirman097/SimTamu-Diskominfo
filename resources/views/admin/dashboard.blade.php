@@ -84,6 +84,7 @@
                                             </div>
                                         @endif
                                     </dd>
+                                    <dt class="text-xs font-medium text-gray-400 mt-1">Bulan lalu: <span class="font-semibold text-gray-500">{{ $lastMonthGuestCount }}</span> tamu</dt>
                                 </dl>
                             </div>
                         </div>
