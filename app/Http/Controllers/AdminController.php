@@ -22,18 +22,21 @@ class AdminController extends Controller
     public function dashboard()
     {
         // --- Statistics Data ---
-        $pendingAppointmentsCount = Appointment::where('status', 'pending')->count();
-        $todayGuestCount = GuestBook::whereDate('waktu_masuk', Carbon::today())->count();
+        $pendingAppointmentsCount = \App\Models\Appointment::where('status', 'pending')->count();
+        $todayGuestCount = \App\Models\GuestBook::whereDate('waktu_masuk', \Carbon\Carbon::today())->count();
         
         // Kunjungan bulan ini
-        $monthlyGuestCount = GuestBook::whereMonth('waktu_masuk', Carbon::now()->month)
-                                      ->whereYear('waktu_masuk', Carbon::now()->year)
+        $monthlyGuestCount = \App\Models\GuestBook::whereMonth('waktu_masuk', \Carbon\Carbon::now()->month)
+                                      ->whereYear('waktu_masuk', \Carbon\Carbon::now()->year)
                                       ->count();
 
         // Kunjungan bulan lalu
-        $lastMonthGuestCount = GuestBook::whereMonth('waktu_masuk', Carbon::now()->subMonth()->month)
-                                        ->whereYear('waktu_masuk', Carbon::now()->subMonth()->year)
+        $lastMonthGuestCount = \App\Models\GuestBook::whereMonth('waktu_masuk', \Carbon\Carbon::now()->subMonth()->month)
+                                        ->whereYear('waktu_masuk', \Carbon\Carbon::now()->subMonth()->year)
                                         ->count();
+
+        // Total Keseluruhan Kunjungan
+        $totalGuestCount = \App\Models\GuestBook::count();
 
         // Persentase Kenaikan/Penurunan Kunjungan
         $growthPercentage = 0;
@@ -47,29 +50,36 @@ class AdminController extends Controller
         $chartLabels = [];
         $chartData = [];
         for ($i = 6; $i >= 0; $i--) {
-            $date = Carbon::today()->subDays($i);
+            $date = \Carbon\Carbon::today()->subDays($i);
             $chartLabels[] = $date->translatedFormat('D, d M');
-            $chartData[] = GuestBook::whereDate('waktu_masuk', $date)->count();
+            $chartData[] = \App\Models\GuestBook::whereDate('waktu_masuk', $date)->count();
         }
 
         // --- Visits per Division Data ---
-        $divisionVisits = GuestBook::select('divisi_tujuan', DB::raw('count(*) as total'))
+        $divisionVisits = \App\Models\GuestBook::select('divisi_tujuan', \Illuminate\Support\Facades\DB::raw('count(*) as total'))
                                     ->groupBy('divisi_tujuan')
                                     ->orderBy('total', 'desc')
                                     ->get();
+
+        // --- 5 Kunjungan Terakhir ---
+        $recentGuests = \App\Models\GuestBook::with('appointment')
+                            ->orderBy('waktu_masuk', 'desc')
+                            ->take(5)
+                            ->get();
 
         return view('admin.dashboard', compact(
             'pendingAppointmentsCount',
             'todayGuestCount',
             'monthlyGuestCount',
             'lastMonthGuestCount',
+            'totalGuestCount',
             'growthPercentage',
             'chartLabels',
             'chartData',
-            'divisionVisits'
+            'divisionVisits',
+            'recentGuests'
         ));
     }
-
     /**
      * Displays the list of pending appointments.
      */
