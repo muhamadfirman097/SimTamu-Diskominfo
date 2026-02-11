@@ -6,6 +6,7 @@ use App\Models\GuestBook;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Carbon\Carbon;
 
 class GuestBookExport implements FromQuery, WithHeadings, WithMapping
 {
@@ -36,8 +37,11 @@ class GuestBookExport implements FromQuery, WithHeadings, WithMapping
     {
         // Membuat ID Kunjungan
         if ($guest->tipe_kunjungan == 'janji_temu') {
-            $idKunjungan = 'JT' . str_pad($guest->id, 2, '0', STR_PAD_LEFT) . '-' . strtoupper(substr($guest->nama_tamu, 0, 2));
+            // Menggunakan appointment_id agar sinkron dengan ID di tampilan View tabel web
+            $id = $guest->appointment_id ?? $guest->id;
+            $idKunjungan = 'JT' . str_pad($id, 2, '0', STR_PAD_LEFT) . '-' . strtoupper(substr($guest->nama_tamu, 0, 2));
         } else {
+            // Tamu On The Spot menggunakan ID dari tabel guest_books
             $idKunjungan = 'OTS' . str_pad($guest->id, 2, '0', STR_PAD_LEFT) . '-' . strtoupper(substr($guest->nama_tamu, 0, 2));
         }
 
@@ -47,7 +51,7 @@ class GuestBookExport implements FromQuery, WithHeadings, WithMapping
             $guest->instansi_asal,
             $guest->divisi_tujuan,
             ucwords(str_replace('_', ' ', $guest->tipe_kunjungan)),
-            \Carbon\Carbon::parse($guest->waktu_masuk)->format('d-m-Y H:i'),
+            Carbon::parse($guest->waktu_masuk)->format('d-m-Y H:i'),
             $guest->keperluan,
         ];
     }
@@ -57,7 +61,7 @@ class GuestBookExport implements FromQuery, WithHeadings, WithMapping
     {
         $query = GuestBook::query();
 
-        // Menerapkan filter yang sama persis seperti di controller
+        // Menerapkan filter pencarian
         if (!empty($this->filters['search'])) {
              $searchTerm = $this->filters['search'];
              if (preg_match('/^(JT|OTS)(\d+)/i', $searchTerm, $matches)) {
@@ -66,12 +70,23 @@ class GuestBookExport implements FromQuery, WithHeadings, WithMapping
                 $query->where('nama_tamu', 'like', '%' . $searchTerm . '%');
             }
         }
-        if (!empty($this->filters['bulan'])) {
-            $query->whereMonth('waktu_masuk', $this->filters['bulan'])->whereYear('waktu_masuk', date('Y'));
+        
+        // Menerapkan filter Rentang Tanggal (Start Date & End Date)
+        if (!empty($this->filters['start_date'])) {
+            $startDate = Carbon::parse($this->filters['start_date'])->startOfDay();
+            $query->where('waktu_masuk', '>=', $startDate);
         }
+        
+        if (!empty($this->filters['end_date'])) {
+            $endDate = Carbon::parse($this->filters['end_date'])->endOfDay();
+            $query->where('waktu_masuk', '<=', $endDate);
+        }
+
+        // Menerapkan filter Dropdown Divisi & Tipe
         if (!empty($this->filters['divisi'])) {
             $query->where('divisi_tujuan', $this->filters['divisi']);
         }
+        
         if (!empty($this->filters['tipe'])) {
             $query->where('tipe_kunjungan', $this->filters['tipe']);
         }
