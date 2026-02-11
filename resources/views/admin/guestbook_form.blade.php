@@ -18,7 +18,8 @@
                         </p>
                     </header>
 
-                    <form action="{{ route('admin.guestbook.store') }}" method="POST" class="space-y-6" x-data="{ selectedDivision: '{{ old('divisi_tujuan') }}' }">
+                    {{-- PERBAIKAN 1: Menggunakan @js() untuk mencegah JS Error / XSS jika ada tanda kutip pada input --}}
+                    <form action="{{ route('admin.guestbook.store') }}" method="POST" class="space-y-6" x-data="{ selectedDivision: @js(old('divisi_tujuan', '')) }">
                         @csrf
 
                         <div>
@@ -42,7 +43,8 @@
                             </select>
                         </div>
 
-                        <div x-show="selectedDivision === 'other'" x-transition>
+                        {{-- PERBAIKAN 2: Menambahkan x-cloak untuk menghindari form berkedip (muncul sesaat) saat load halaman --}}
+                        <div x-cloak x-show="selectedDivision === 'other'" x-transition>
                              <x-input-label for="new_division_name_admin" :value="__('Nama Divisi Baru')" />
                              <x-text-input id="new_division_name_admin" name="new_division_name" type="text" class="mt-1 block w-full"
                                     :value="old('new_division_name')"
