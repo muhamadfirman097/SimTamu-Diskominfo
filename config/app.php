@@ -83,7 +83,7 @@ return [
     |
     */
 
-    'locale' => 'en',
+    'locale' => 'id', // BERUBAH DARI 'en' MENJADI 'id'
 
     /*
     |--------------------------------------------------------------------------
@@ -109,7 +109,7 @@ return [
     |
     */
 
-    'faker_locale' => 'en_US',
+    'faker_locale' => 'id_ID', // BERUBAH DARI 'en_US' MENJADI 'id_ID'
 
     /*
     |--------------------------------------------------------------------------
