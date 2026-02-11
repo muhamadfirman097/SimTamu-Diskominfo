@@ -24,9 +24,24 @@ class AdminController extends Controller
         // --- Statistics Data ---
         $pendingAppointmentsCount = Appointment::where('status', 'pending')->count();
         $todayGuestCount = GuestBook::whereDate('waktu_masuk', Carbon::today())->count();
+        
+        // Kunjungan bulan ini
         $monthlyGuestCount = GuestBook::whereMonth('waktu_masuk', Carbon::now()->month)
                                       ->whereYear('waktu_masuk', Carbon::now()->year)
                                       ->count();
+
+        // Kunjungan bulan lalu
+        $lastMonthGuestCount = GuestBook::whereMonth('waktu_masuk', Carbon::now()->subMonth()->month)
+                                        ->whereYear('waktu_masuk', Carbon::now()->subMonth()->year)
+                                        ->count();
+
+        // Persentase Kenaikan/Penurunan Kunjungan
+        $growthPercentage = 0;
+        if ($lastMonthGuestCount > 0) {
+            $growthPercentage = (($monthlyGuestCount - $lastMonthGuestCount) / $lastMonthGuestCount) * 100;
+        } elseif ($monthlyGuestCount > 0) {
+            $growthPercentage = 100; // Jika bulan lalu kosong, dianggap naik 100%
+        }
 
         // --- Chart Data (Last 7 Days) ---
         $chartLabels = [];
@@ -43,14 +58,16 @@ class AdminController extends Controller
                                     ->orderBy('total', 'desc')
                                     ->get();
 
-        return view('admin.dashboard', [
-            'pendingAppointmentsCount' => $pendingAppointmentsCount,
-            'todayGuestCount' => $todayGuestCount,
-            'monthlyGuestCount' => $monthlyGuestCount,
-            'chartLabels' => $chartLabels,
-            'chartData' => $chartData,
-            'divisionVisits' => $divisionVisits,
-        ]);
+        return view('admin.dashboard', compact(
+            'pendingAppointmentsCount',
+            'todayGuestCount',
+            'monthlyGuestCount',
+            'lastMonthGuestCount',
+            'growthPercentage',
+            'chartLabels',
+            'chartData',
+            'divisionVisits'
+        ));
     }
 
     /**
@@ -110,6 +127,7 @@ class AdminController extends Controller
     {
         $query = GuestBook::with('appointment');
 
+        // Filter Pencarian
         if ($request->filled('search')) {
             $searchTerm = $request->input('search');
             if (preg_match('/^(JT|OTS)(\d+)/i', $searchTerm, $matches)) {
@@ -118,9 +136,18 @@ class AdminController extends Controller
                 $query->where('nama_tamu', 'like', '%' . $searchTerm . '%');
             }
         }
-        if ($request->filled('bulan')) {
-            $query->whereMonth('waktu_masuk', $request->input('bulan'))->whereYear('waktu_masuk', date('Y'));
+
+        // Filter Rentang Tanggal
+        if ($request->filled('start_date')) {
+            $startDate = Carbon::parse($request->input('start_date'))->startOfDay();
+            $query->where('waktu_masuk', '>=', $startDate);
         }
+        if ($request->filled('end_date')) {
+            $endDate = Carbon::parse($request->input('end_date'))->endOfDay();
+            $query->where('waktu_masuk', '<=', $endDate);
+        }
+
+        // Filter Dropdown
         if ($request->filled('divisi')) {
             $query->where('divisi_tujuan', $request->input('divisi'));
         }
@@ -133,7 +160,6 @@ class AdminController extends Controller
 
         return view('admin.guestbook_list', compact('guests', 'divisions'));
     }
-
     /**
      * Displays the form for adding an on-the-spot guest.
      */
@@ -178,11 +204,11 @@ class AdminController extends Controller
      */
     public function exportGuestBook(Request $request)
     {
-        $filters = $request->only(['search', 'bulan', 'divisi', 'tipe']);
+        // Sesuaikan parameter filter yang dikirim
+        $filters = $request->only(['search', 'start_date', 'end_date', 'divisi', 'tipe']);
         $fileName = 'laporan-buku-tamu-' . date('Y-m-d') . '.xlsx';
         return Excel::download(new GuestBookExport($filters), $fileName);
     }
-
     /**
      * Deletes a single guest book entry.
      */
